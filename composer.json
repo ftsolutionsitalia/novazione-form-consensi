@@ -1,0 +1,36 @@
+{
+    "name": "novazione/form-consensi",
+    "description": "Landing page con form contatti e gestione consensi GDPR compliant",
+    "type": "project",
+    "license": "proprietary",
+    "authors": [
+        {
+            "name": "Novazione",
+            "email": "info@novazione.it"
+        }
+    ],
+    "require": {
+        "php": ">=7.4",
+        "tecnickcom/tcpdf": "^6.6"
+    },
+    "require-dev": {
+        "phpunit/phpunit": "^9.5"
+    },
+    "autoload": {
+        "psr-4": {
+            "Novazione\\": "includes/"
+        }
+    },
+    "config": {
+        "optimize-autoloader": true,
+        "sort-packages": true
+    },
+    "scripts": {
+        "post-install-cmd": [
+            "@php -r \"if (!is_dir('pdfs')) mkdir('pdfs', 0755);\"",
+            "@php -r \"if (!is_dir('data')) mkdir('data', 0755);\"",
+            "@php -r \"if (!is_dir('logs')) mkdir('logs', 0755);\""
+        ]
+    },
+    "minimum-stability": "stable"
+}

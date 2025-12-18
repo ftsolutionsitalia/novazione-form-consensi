@@ -1,0 +1,33 @@
+# Dependencies
+/vendor/*
+!/vendor/tcpdf/
+
+# Generated files
+/pdfs/*
+!/pdfs/.gitkeep
+/data/*
+!/data/.gitkeep
+/logs/*
+!/logs/.gitkeep
+
+# Environment
+.env
+.env.local
+.env.*.local
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Composer
+composer.lock
+
+# Cache
+*.cache
