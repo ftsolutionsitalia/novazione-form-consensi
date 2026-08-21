@@ -1,0 +1,54 @@
+@import "tailwindcss";
+
+@theme {
+  --color-stone-950: #17140f;
+  --color-gold-50: #fdf8ec;
+  --color-gold-100: #faedc4;
+  --color-gold-200: #f5db8d;
+  --color-gold-300: #edc158;
+  --color-gold-400: #e2a730;
+  --color-gold-500: #cf9027;
+  --color-gold-600: #ab6f20;
+  --color-gold-700: #86541e;
+  --color-gold-800: #6e451f;
+  --color-gold-900: #5c3a1e;
+  --font-serif-display: "Georgia", "Iowan Old Style", serif;
+}
+
+body {
+  background-color: #100e0a;
+  color: #f5ede0;
+  font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+}
+
+::selection {
+  background-color: #cf9027;
+  color: #100e0a;
+}
+
+.input {
+  width: 100%;
+  border-radius: 0.5rem;
+  background: rgba(0, 0, 0, 0.3);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  padding: 0.5rem 0.75rem;
+  font-size: 0.875rem;
+  color: white;
+}
+.input:focus {
+  outline: none;
+  border-color: #cf9027;
+}
+.input::placeholder {
+  color: rgba(255, 255, 255, 0.3);
+}
+
+.touchstone-streak {
+  background-image: repeating-linear-gradient(
+    90deg,
+    rgba(0, 0, 0, 0.15) 0px,
+    rgba(0, 0, 0, 0.15) 1px,
+    transparent 1px,
+    transparent 3px
+  );
+}
