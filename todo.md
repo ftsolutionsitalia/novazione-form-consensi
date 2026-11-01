@@ -18,14 +18,18 @@
 - [x] Disclaimer sui limiti della prova alla tocca (non sostituisce analisi di laboratorio)
 - [x] Verifica build (`tsc --noEmit`, `npm run build`) e test end-to-end manuale del flusso completo (prova → valutazione → registro) via browser
 
+## Miglioramenti a breve termine — completati
+
+- [x] Test unitari (Vitest) per `computeGoldValue`, `round2`, `formatEUR`, `nearestKarat` e il parsing dei backup (`src/lib/*.test.ts`, `src/data/goldReference.test.ts`) — eseguibili con `npm run test`
+- [x] Ricevuta stampabile per operazione (`src/components/Receipt.tsx`), apribile dal Registro, con vista di stampa dedicata (`@media print`)
+- [x] Collegamento del `touchTestId` salvato alla voce di registro, con dettaglio espandibile della prova associata (reagente, reazione, note)
+- [x] Validazione input più robusta: peso non numerico/negativo in Valutazione, quotazione ≤ 0 e sconto fuori 0–100 in Impostazioni, con messaggi di errore inline e salvataggio bloccato finché non validi
+- [x] Backup/import completo dei dati (export/import JSON di impostazioni + registro + prove) in Impostazioni, con validazione del file e conferma prima di sovrascrivere
+
 ## Da fare — miglioramenti a breve termine
 
-- [ ] Test unitari per `computeGoldValue` e per la logica di suggerimento reagente/verdetto in `TouchTest`
-- [ ] Generazione ricevuta/scontrino stampabile (PDF o vista di stampa) per il cliente al termine della Valutazione
-- [ ] Collegamento del `touchTestId` salvato alla voce di registro, con vista di dettaglio della prova associata
-- [ ] Validazione input più robusta (peso negativo/non numerico, quotazione a zero) con messaggi di errore inline
 - [ ] Modalità chiaro/scuro (attualmente solo tema scuro)
-- [ ] Import/backup completo dei dati (export/import JSON di impostazioni + registro + prove), non solo CSV
+- [ ] Test automatizzati end-to-end (oggi la copertura e2e è solo manuale via browser)
 
 ## Roadmap — funzionalità future
 
@@ -39,5 +43,5 @@
 
 ## Note tecniche
 
-- Nessun backend: tutti i dati vivono in `localStorage` del browser che esegue l'app. Cancellare i dati del sito equivale a perdere registro e prove salvate finché non sarà implementato l'export/import JSON.
-- Stack: React 19 + TypeScript + Vite + Tailwind CSS v4. Nessuna dipendenza da servizi esterni in questa versione.
+- Nessun backend: tutti i dati vivono in `localStorage` del browser che esegue l'app. Cancellare i dati del sito equivale a perdere registro e prove salvate — esporta un backup JSON periodicamente da Impostazioni.
+- Stack: React 19 + TypeScript + Vite + Tailwind CSS v4 + Vitest. Nessuna dipendenza da servizi esterni in questa versione.

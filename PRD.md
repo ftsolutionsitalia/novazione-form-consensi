@@ -66,16 +66,20 @@ Non esiste uno strumento leggero, offline-first, che guidi passo passo la prova 
 - Form con nome cliente, descrizione oggetto, peso (grammi), titolo (precompilabile dalla prova alla tocca o selezionabile manualmente).
 - Calcolo in tempo reale di: valore pieno, sconto di acquisto applicato, importo da corrispondere al cliente.
 - Registrazione dell'operazione nel registro con un click.
+- Validazione inline: peso non numerico o ≤ 0 blocca il salvataggio con messaggio d'errore; se la quotazione oro non è impostata (≤ 0) viene mostrato un avviso che rimanda a Impostazioni.
 
 ### 7.4 Registro
 - Elenco delle operazioni registrate (data, cliente, oggetto, peso, titolo, importo pagato).
+- Dettaglio espandibile della prova alla tocca collegata (reagente usato, reazione osservata, note), quando presente.
+- Ricevuta d'acquisto stampabile per singola operazione (dati attività, dettaglio oggetto/titolo/valore), con vista di stampa dedicata.
 - Eliminazione singola voce.
 - Esportazione dell'intero registro in CSV.
 
 ### 7.5 Impostazioni
-- Nome e indirizzo dell'attività (per uso futuro in ricevute).
-- Quotazione oro fino 24K (€/grammo).
-- Percentuale di sconto/margine applicato in acquisto.
+- Nome e indirizzo dell'attività (usati anche nell'intestazione della ricevuta).
+- Quotazione oro fino 24K (€/grammo), con validazione (deve essere maggiore di zero).
+- Percentuale di sconto/margine applicato in acquisto, con validazione (0–100).
+- Backup dati: esportazione e importazione di un file JSON con impostazioni, registro e prove alla tocca, con validazione del file e conferma prima di sovrascrivere i dati correnti.
 
 ## 8. Requisiti non funzionali
 
@@ -83,7 +87,8 @@ Non esiste uno strumento leggero, offline-first, che guidi passo passo la prova 
 - **Responsive**: utilizzabile su tablet/desktop nel punto vendita.
 - **Performance**: SPA leggera (bundle < 300 KB gzip), caricamento istantaneo.
 - **Localizzazione**: interfaccia in italiano, valute e date formattate secondo locale `it-IT`.
-- **Accessibilità di base**: contrasto adeguato su sfondo scuro, elementi interattivi navigabili da tastiera.
+- **Accessibilità di base**: contrasto adeguato su sfondo scuro, elementi interattivi navigabili da tastiera, stato attivo/selezionato esposto via `aria-current`/`aria-pressed`, dialoghi con `role="dialog"`.
+- **Qualità**: logica di calcolo e di validazione dei backup coperta da test unitari (Vitest).
 
 ## 9. Metriche di successo
 

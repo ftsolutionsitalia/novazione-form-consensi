@@ -21,8 +21,8 @@ L'app è completamente offline-first: nessun backend, dati salvati in `localStor
 
 1. **Dashboard** — quotazione oro corrente e tabella prezzi per carato.
 2. **Prova alla Tocca** — modulo guidato in due passaggi: confronto visivo sulla pietra di paragone e conferma con reagente acido.
-3. **Valutazione** — calcolo automatico del valore (pieno e di acquisto) in base a peso, titolo e quotazione.
-4. **Registro** — storico delle operazioni, esportabile in CSV.
-5. **Impostazioni** — quotazione oro, percentuale di sconto d'acquisto, dati attività.
+3. **Valutazione** — calcolo automatico del valore (pieno e di acquisto) in base a peso, titolo e quotazione, con validazione degli input.
+4. **Registro** — storico delle operazioni con dettaglio della prova collegata, ricevuta stampabile per cliente, esportazione CSV.
+5. **Impostazioni** — quotazione oro, percentuale di sconto d'acquisto, dati attività, backup/import completo dei dati in JSON.
 
 > ⚠️ Lo strumento è un supporto operativo e didattico: non sostituisce un'analisi di laboratorio abilitata (XRF, saggio al fuoco).

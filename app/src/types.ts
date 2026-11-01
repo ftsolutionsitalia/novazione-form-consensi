@@ -29,3 +29,11 @@ export interface LedgerEntry {
   valuePaid: number;
   touchTestId?: string;
 }
+
+export interface BackupData {
+  version: 1;
+  exportedAt: string;
+  settings: Settings;
+  ledger: LedgerEntry[];
+  touchTests: TouchTestRecord[];
+}

@@ -1,13 +1,21 @@
+import { Fragment, useState } from "react";
+import { ACID_REACTION_LABELS, ACID_REAGENTS, type AcidReaction } from "../data/goldReference";
 import { ledgerStore } from "../lib/storage";
 import { formatEUR } from "../lib/valuation";
-import type { LedgerEntry } from "../types";
+import type { LedgerEntry, Settings, TouchTestRecord } from "../types";
+import Receipt from "./Receipt";
 
 interface LedgerProps {
   entries: LedgerEntry[];
+  touchTests: TouchTestRecord[];
+  settings: Settings;
   onChange: () => void;
 }
 
-export default function Ledger({ entries, onChange }: LedgerProps) {
+export default function Ledger({ entries, touchTests, settings, onChange }: LedgerProps) {
+  const [expandedId, setExpandedId] = useState<string | null>(null);
+  const [receiptEntry, setReceiptEntry] = useState<LedgerEntry | null>(null);
+
   function handleDelete(id: string) {
     ledgerStore.remove(id);
     onChange();
@@ -65,27 +73,87 @@ export default function Ledger({ entries, onChange }: LedgerProps) {
               </tr>
             </thead>
             <tbody>
-              {entries.map((e) => (
-                <tr key={e.id} className="border-t border-white/5">
-                  <td className="py-2 px-3 text-white/60">{new Date(e.createdAt).toLocaleDateString("it-IT")}</td>
-                  <td className="py-2 px-3">{e.clientName}</td>
-                  <td className="py-2 px-3 text-white/60">{e.itemDescription}</td>
-                  <td className="py-2 px-3">{e.weightGrams.toFixed(2)} g</td>
-                  <td className="py-2 px-3">{e.karat} K</td>
-                  <td className="py-2 px-3 text-gold-300">{formatEUR(e.valuePaid)}</td>
-                  <td className="py-2 px-3">
-                    <button
-                      onClick={() => handleDelete(e.id)}
-                      className="text-xs text-white/30 hover:text-red-400"
-                    >
-                      Elimina
-                    </button>
-                  </td>
-                </tr>
-              ))}
+              {entries.map((e) => {
+                const touchTest = e.touchTestId ? touchTests.find((t) => t.id === e.touchTestId) : undefined;
+                const isExpanded = expandedId === e.id;
+                return (
+                  <Fragment key={e.id}>
+                    <tr className="border-t border-white/5">
+                      <td className="py-2 px-3 text-white/60">{new Date(e.createdAt).toLocaleDateString("it-IT")}</td>
+                      <td className="py-2 px-3">{e.clientName}</td>
+                      <td className="py-2 px-3 text-white/60">{e.itemDescription}</td>
+                      <td className="py-2 px-3">{e.weightGrams.toFixed(2)} g</td>
+                      <td className="py-2 px-3">
+                        {e.karat} K
+                        {touchTest && (
+                          <button
+                            onClick={() => setExpandedId(isExpanded ? null : e.id)}
+                            className="ml-2 text-xs text-gold-300/70 hover:text-gold-300 underline underline-offset-2"
+                          >
+                            {isExpanded ? "nascondi prova" : "vedi prova"}
+                          </button>
+                        )}
+                      </td>
+                      <td className="py-2 px-3 text-gold-300">{formatEUR(e.valuePaid)}</td>
+                      <td className="py-2 px-3 whitespace-nowrap">
+                        <button
+                          onClick={() => setReceiptEntry(e)}
+                          className="text-xs text-white/50 hover:text-gold-300 mr-3"
+                        >
+                          Ricevuta
+                        </button>
+                        <button
+                          onClick={() => handleDelete(e.id)}
+                          className="text-xs text-white/30 hover:text-red-400"
+                        >
+                          Elimina
+                        </button>
+                      </td>
+                    </tr>
+                    {isExpanded && touchTest && (
+                      <tr className="border-t border-white/5 bg-white/5">
+                        <td colSpan={7} className="py-3 px-3">
+                          <TouchTestSummary record={touchTest} />
+                        </td>
+                      </tr>
+                    )}
+                  </Fragment>
+                );
+              })}
             </tbody>
           </table>
         </div>
+      )}
+
+      {receiptEntry && <Receipt entry={receiptEntry} settings={settings} onClose={() => setReceiptEntry(null)} />}
+    </div>
+  );
+}
+
+function TouchTestSummary({ record }: { record: TouchTestRecord }) {
+  const reagent = record.reagentUsed ? ACID_REAGENTS.find((r) => r.id === record.reagentUsed) : undefined;
+  return (
+    <div className="text-xs text-white/60 space-y-1">
+      <p>
+        <span className="text-white/40">Prova del</span> {new Date(record.createdAt).toLocaleString("it-IT")}
+      </p>
+      <p>
+        <span className="text-white/40">Stima visiva:</span> {record.estimatedKarat} K ({record.estimatedMillesimi}‰)
+      </p>
+      {reagent && (
+        <p>
+          <span className="text-white/40">Reagente:</span> {reagent.label}
+        </p>
+      )}
+      {record.reaction && (
+        <p>
+          <span className="text-white/40">Reazione:</span> {ACID_REACTION_LABELS[record.reaction as AcidReaction]}
+        </p>
+      )}
+      {record.notes && (
+        <p>
+          <span className="text-white/40">Note:</span> {record.notes}
+        </p>
       )}
     </div>
   );

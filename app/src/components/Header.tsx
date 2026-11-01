@@ -25,11 +25,12 @@ export default function Header({ active, onChange }: HeaderProps) {
           <p className="text-xs text-white/50 leading-tight">Prova &amp; valutazione dell'oro</p>
         </div>
       </div>
-      <nav className="mx-auto max-w-5xl px-4 flex gap-1 overflow-x-auto pb-2">
+      <nav className="mx-auto max-w-5xl px-4 flex gap-1 overflow-x-auto pb-2" aria-label="Sezioni dell'app">
         {TABS.map((tab) => (
           <button
             key={tab.id}
             onClick={() => onChange(tab.id)}
+            aria-current={active === tab.id ? "page" : undefined}
             className={`whitespace-nowrap rounded-full px-3 py-1.5 text-sm transition-colors ${
               active === tab.id
                 ? "bg-gold-400 text-stone-950 font-medium"

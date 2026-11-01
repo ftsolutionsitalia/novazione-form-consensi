@@ -14,6 +14,7 @@ export default function Valuation({ settings, prefill, onSaved }: ValuationProps
   const [clientName, setClientName] = useState("");
   const [itemDescription, setItemDescription] = useState("");
   const [weightGrams, setWeightGrams] = useState<string>("");
+  const [weightTouched, setWeightTouched] = useState(false);
   const [millesimi, setMillesimi] = useState<number>(prefill?.millesimi ?? 750);
   const [savedMsg, setSavedMsg] = useState(false);
 
@@ -21,7 +22,17 @@ export default function Valuation({ settings, prefill, onSaved }: ValuationProps
     if (prefill) setMillesimi(prefill.millesimi);
   }, [prefill]);
 
-  const weight = parseFloat(weightGrams.replace(",", ".")) || 0;
+  const weightNormalized = weightGrams.trim().replace(",", ".");
+  const parsedWeight = weightNormalized === "" ? NaN : Number(weightNormalized);
+  const weightIsValid = Number.isFinite(parsedWeight) && parsedWeight > 0;
+  const weight = weightIsValid ? parsedWeight : 0;
+  const weightError =
+    weightTouched && weightGrams.trim() !== "" && !weightIsValid
+      ? "Inserisci un peso valido maggiore di zero (es. 5.40)."
+      : null;
+
+  const priceNotSet = settings.pricePerGram24k <= 0;
+
   const { valueBeforeDiscount, valuePaid } = computeGoldValue(
     weight,
     millesimi,
@@ -30,7 +41,8 @@ export default function Valuation({ settings, prefill, onSaved }: ValuationProps
   );
 
   function handleSave() {
-    if (weight <= 0) return;
+    setWeightTouched(true);
+    if (!weightIsValid || priceNotSet) return;
     const karatRef = KARAT_REFERENCE.find((k) => k.millesimi === millesimi);
     const entry: LedgerEntry = {
       id: newId(),
@@ -51,6 +63,7 @@ export default function Valuation({ settings, prefill, onSaved }: ValuationProps
     setClientName("");
     setItemDescription("");
     setWeightGrams("");
+    setWeightTouched(false);
     onSaved();
     setTimeout(() => setSavedMsg(false), 2500);
   }
@@ -59,6 +72,13 @@ export default function Valuation({ settings, prefill, onSaved }: ValuationProps
     <div className="space-y-6 max-w-xl">
       <section className="rounded-xl border border-white/10 bg-white/5 p-4 space-y-4">
         <h2 className="font-serif-display text-gold-200">Valutazione oggetto</h2>
+
+        {priceNotSet && (
+          <p className="rounded-lg bg-red-500/10 border border-red-500/30 p-3 text-sm text-red-300">
+            Quotazione oro non impostata. Vai in Impostazioni e inserisci un prezzo al grammo maggiore di zero prima
+            di registrare un'operazione.
+          </p>
+        )}
 
         <Field label="Nome cliente">
           <input
@@ -78,13 +98,15 @@ export default function Valuation({ settings, prefill, onSaved }: ValuationProps
           />
         </Field>
 
-        <Field label="Peso (grammi)">
+        <Field label="Peso (grammi)" error={weightError}>
           <input
             value={weightGrams}
             onChange={(e) => setWeightGrams(e.target.value)}
-            className="input"
+            onBlur={() => setWeightTouched(true)}
+            className={`input ${weightError ? "input-error" : ""}`}
             inputMode="decimal"
             placeholder="0.00"
+            aria-invalid={weightError ? true : undefined}
           />
         </Field>
 
@@ -116,7 +138,7 @@ export default function Valuation({ settings, prefill, onSaved }: ValuationProps
 
         <button
           onClick={handleSave}
-          disabled={weight <= 0}
+          disabled={!weightIsValid || priceNotSet}
           className="w-full rounded-lg bg-gold-400 text-stone-950 font-medium px-4 py-2 text-sm hover:bg-gold-300 disabled:opacity-40 disabled:cursor-not-allowed"
         >
           Registra operazione
@@ -127,11 +149,20 @@ export default function Valuation({ settings, prefill, onSaved }: ValuationProps
   );
 }
 
-function Field({ label, children }: { label: string; children: React.ReactNode }) {
+function Field({
+  label,
+  children,
+  error,
+}: {
+  label: string;
+  children: React.ReactNode;
+  error?: string | null;
+}) {
   return (
     <label className="block">
       <span className="block text-xs text-white/50 mb-1">{label}</span>
       {children}
+      {error && <span className="block text-xs text-red-400 mt-1">{error}</span>}
     </label>
   );
 }

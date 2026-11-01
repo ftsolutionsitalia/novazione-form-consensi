@@ -61,7 +61,7 @@ export default function TouchTest({ onConfirmed }: TouchTestProps) {
           Strofinare il pezzo sulla pietra di paragone (basanite) e confrontare lo striscio ottenuto con gli aghi di
           riferimento. Selezionare la tonalità più simile.
         </p>
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2" role="group" aria-label="Titolo stimato dal confronto visivo">
           {KARAT_REFERENCE.map((ref) => (
             <button
               key={ref.karat}
@@ -71,6 +71,7 @@ export default function TouchTest({ onConfirmed }: TouchTestProps) {
                 setReaction(null);
                 setSaved(null);
               }}
+              aria-pressed={selected?.karat === ref.karat}
               className={`rounded-lg border p-3 text-left transition-colors ${
                 selected?.karat === ref.karat
                   ? "border-gold-400 bg-gold-400/10"
@@ -95,11 +96,12 @@ export default function TouchTest({ onConfirmed }: TouchTestProps) {
             Reagente suggerito in base alla stima visiva: <strong>{suggestedReagent?.label}</strong>. Applicare una
             goccia sullo striscio e osservare la reazione.
           </p>
-          <div className="flex flex-wrap gap-2 mb-4">
+          <div className="flex flex-wrap gap-2 mb-4" role="group" aria-label="Reagente acido utilizzato">
             {ACID_REAGENTS.map((reagent) => (
               <button
                 key={reagent.id}
                 onClick={() => setReagentId(reagent.id)}
+                aria-pressed={reagentId === reagent.id}
                 className={`rounded-full px-3 py-1.5 text-sm border transition-colors ${
                   reagentId === reagent.id
                     ? "border-gold-400 bg-gold-400/10 text-gold-200"
@@ -114,11 +116,12 @@ export default function TouchTest({ onConfirmed }: TouchTestProps) {
           {reagentId && (
             <div className="space-y-2 mb-4">
               <p className="text-sm text-white/70">Reazione osservata:</p>
-              <div className="flex flex-wrap gap-2">
+              <div className="flex flex-wrap gap-2" role="group" aria-label="Reazione osservata">
                 {(Object.keys(ACID_REACTION_LABELS) as AcidReaction[]).map((key) => (
                   <button
                     key={key}
                     onClick={() => setReaction(key)}
+                    aria-pressed={reaction === key}
                     className={`rounded-lg px-3 py-1.5 text-sm border text-left transition-colors ${
                       reaction === key
                         ? "border-gold-400 bg-gold-400/10 text-gold-200"
