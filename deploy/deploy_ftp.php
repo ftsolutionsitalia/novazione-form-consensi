@@ -38,7 +38,7 @@ $pass = getenv('FTP_PASS') ?: ask('Password FTP', '', true);
 $dest = rtrim(getenv('FTP_DIR') ?: ask('Cartella remota', '/public_html/sviluppo'), '/');
 
 $root = dirname(__DIR__);
-$skip = ['.git', 'storage', 'tests', 'deploy', '.github', 'node_modules'];
+$skip = ['.git', 'storage', 'tests', 'deploy', 'docs', '.github', 'node_modules'];
 
 // Prima prova FTPS (cifrato), poi FTP semplice
 $ftp = function_exists('ftp_ssl_connect') ? @ftp_ssl_connect($host, 21, 20) : false;
