@@ -1,0 +1,44 @@
+# Novazione Form Consensi – configurazione Apache
+
+Options -Indexes
+AddDefaultCharset UTF-8
+DirectoryIndex index.php
+
+<IfModule mod_rewrite.c>
+    RewriteEngine On
+
+    # Forza HTTPS (decommenta quando il certificato SSL è attivo)
+    # RewriteCond %{HTTPS} !=on
+    # RewriteRule ^ https://%{HTTP_HOST}%{REQUEST_URI} [L,R=301]
+
+    # Cartelle non pubbliche: codice, librerie, dati, test, deploy
+    RewriteRule ^(includes|vendor|storage|tests|deploy|docs)(/|$) - [F,L]
+</IfModule>
+
+# Blocca file sensibili anche senza mod_rewrite
+<FilesMatch "(^\.|\.(json|lock|md|log|sh|dist|key|crt|pem|jsonl)$|^composer\.)">
+    <IfModule mod_authz_core.c>
+        Require all denied
+    </IfModule>
+    <IfModule !mod_authz_core.c>
+        Order allow,deny
+        Deny from all
+    </IfModule>
+</FilesMatch>
+
+<IfModule mod_headers.c>
+    Header always set X-Content-Type-Options "nosniff"
+    Header always set Referrer-Policy "strict-origin-when-cross-origin"
+    # Attiva dopo aver abilitato HTTPS:
+    # Header always set Strict-Transport-Security "max-age=31536000"
+</IfModule>
+
+<IfModule mod_expires.c>
+    ExpiresActive On
+    ExpiresByType text/css "access plus 1 month"
+    ExpiresByType application/javascript "access plus 1 month"
+</IfModule>
+
+<IfModule mod_deflate.c>
+    AddOutputFilterByType DEFLATE text/html text/plain text/css application/javascript application/json
+</IfModule>

@@ -1,0 +1,15 @@
+# Dati personali, chiavi e log generati a runtime: MAI su Git
+/storage/
+
+# Configurazione locale con password
+/includes/config.local.php
+
+# Composer: vendor/ è versionato di proposito (gli hosting condivisi spesso
+# non hanno Composer), ma niente cache
+composer.phar
+
+.env
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
