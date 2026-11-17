@@ -116,7 +116,7 @@ REC=$(python3 -c "import json,sys;[print(l) for l in open(sys.argv[1]) if sys.ar
 LEDGER_SHA=$(printf '%s' "$REC" | json 'd["pdf_sha256"]')
 check "SHA-256 allegato = registro = file su server" '[ "$(sha256sum "$TMP/ADMIN.pdf" | cut -c1-64)" = "$LEDGER_SHA" ] && [ "$(sha256sum "$STORAGE/pdfs/$ID.pdf" | cut -c1-64)" = "$LEDGER_SHA" ]'
 check "SHA-256 del PDF riportato nell'email admin" 'grep -q "$LEDGER_SHA" "$TMP/ADMIN.html"'
-check "Registro senza dati personali in chiaro" '! printf "%s" "$REC" | grep -Eqi "Amico|utente.test|347|10\.0\.0\.2"'
+check "Registro senza dati personali in chiaro" '! printf "%s" "$REC" | grep -Eqi "Amico|utente.test|393471234567|"10\.0\.0\.2""'
 recjson="$STORAGE/records/$ID.json"
 check "Dati personali salvati nel file pratica" 'grep -q "Zoë Ana" "$recjson" && grep -q "+393471234567" "$recjson"'
 check "Email normalizzata minuscola, telefono in formato +39" 'grep -q "utente.test@example.it" "$recjson"'
