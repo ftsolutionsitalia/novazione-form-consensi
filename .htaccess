@@ -12,7 +12,7 @@ DirectoryIndex index.php
     # RewriteRule ^ https://%{HTTP_HOST}%{REQUEST_URI} [L,R=301]
 
     # Cartelle non pubbliche: codice, librerie, dati, test, deploy
-    RewriteRule ^(includes|vendor|storage|tests|deploy)(/|$) - [F,L]
+    RewriteRule ^(includes|vendor|storage|tests|deploy|docs)(/|$) - [F,L]
 </IfModule>
 
 # Blocca file sensibili anche senza mod_rewrite
