@@ -1,62 +1,85 @@
 <?php
 /**
- * Configurazione Novazione Form Consensi
+ * Configurazione predefinita.
  *
- * File di configurazione principale dell'applicazione
+ * NON mettere password in questo file: è versionato su Git.
+ * Per sovrascrivere i valori (password SMTP, password admin, dati aziendali)
+ * copia includes/config.local.example.php in includes/config.local.php
+ * (quel file è escluso da Git e protetto da .htaccess).
  */
 
-// Impedisci accesso diretto
 if (!defined('NOVAZIONE_APP')) {
-    die('Accesso negato');
+    http_response_code(403);
+    exit;
 }
 
-// Configurazione email
-define('EMAIL_DESTINATARIO', '73.leonardo.v@gmail.com');
-define('EMAIL_MITTENTE', 'noreply@novazione.it');
-define('EMAIL_NOME_MITTENTE', 'Novazione');
+$config = [
+    // --- Destinatario delle prove di consenso ---------------------------
+    'admin_email'        => '73.leonardo.v@gmail.com',
 
-// Configurazione azienda
-define('AZIENDA_NOME', 'Novazione S.r.l.');
-define('AZIENDA_INDIRIZZO', 'Via Roma 123, 20121 Milano (MI)');
-define('AZIENDA_PIVA', 'IT00000000000');
-define('AZIENDA_EMAIL', 'info@novazione.it');
-define('AZIENDA_TELEFONO', '+39 02 1234567');
+    // Mittente: deve appartenere al dominio del sito, altrimenti
+    // Gmail scarta o mette in spam (SPF/DMARC). Vuoto = noreply@<dominio>.
+    'mail_from'          => '',
+    'mail_from_name'     => 'Novazione',
+    'send_user_copy'     => true,   // invia copia del PDF anche all'utente
 
-// Configurazione percorsi
-define('ROOT_PATH', dirname(__DIR__));
-define('PDF_PATH', ROOT_PATH . '/pdfs/');
-define('VENDOR_PATH', ROOT_PATH . '/vendor/');
+    // SMTP (consigliato). Se 'host' è vuoto si usa mail() di PHP.
+    'smtp' => [
+        'host'       => '',
+        'port'       => 587,
+        'username'   => '',
+        'password'   => '',
+        'encryption' => 'tls',      // 'tls' (587), 'ssl' (465) o ''
+    ],
 
-// Configurazione sicurezza
-define('HASH_ALGORITHM', 'sha256');
-define('SECRET_KEY', 'NovazioneSaltKey2024!SecureHash'); // Cambiare in produzione
+    // --- Titolare del trattamento (compare nel PDF e nell'informativa) ---
+    'company' => [
+        'name'      => 'Novazione S.r.l.',
+        'address'   => 'Via Roma 123, 20121 Milano (MI)',
+        'vat'       => 'IT00000000000',
+        'email'     => 'info@novazione.it',
+        'phone'     => '+39 02 1234567',
+        'pec'       => '',
+        'dpo_email' => '',
+    ],
 
-// Configurazione debug (disattivare in produzione)
-define('DEBUG_MODE', false);
+    // --- Testi dei consensi (versionati) ----------------------------------
+    // Se modifichi un testo, aumenta 'version': ogni PDF riporta il testo
+    // esatto e la versione accettata (art. 7.1 GDPR: onere della prova).
+    'consents' => [
+        'version'     => '2026-11-17.1',
+        'policy_url'  => 'privacy.php',
+        'privacy'     => "Dichiaro di aver letto l'Informativa Privacy e acconsento al trattamento dei miei dati personali per essere ricontattato in merito alla mia richiesta (art. 6.1.a/b GDPR).",
+        'marketing'   => "Acconsento a ricevere comunicazioni commerciali e promozionali via email, telefono, SMS e WhatsApp (facoltativo, revocabile in qualsiasi momento - art. 6.1.a GDPR).",
+    ],
 
-// Timezone
-date_default_timezone_set('Europe/Rome');
+    // --- Sicurezza ---------------------------------------------------------
+    // Proxy fidati: solo se REMOTE_ADDR è in questa lista si legge X-Forwarded-For.
+    // Usa 'cloudflare' come voce per fidarsi dell'header CF-Connecting-IP.
+    'trusted_proxies'    => [],
+    'rate_limit'         => ['max' => 5, 'window' => 3600],  // invii per IP all'ora
+    'min_fill_seconds'   => 3,      // invii più rapidi = bot
+    'double_opt_in'      => true,   // conferma via email del consenso marketing
 
-// Error reporting
-if (DEBUG_MODE) {
-    error_reporting(E_ALL);
-    ini_set('display_errors', 1);
-} else {
-    error_reporting(0);
-    ini_set('display_errors', 0);
-}
+    // Area admin: genera l'hash con
+    //   php -r "echo password_hash('LaTuaPassword', PASSWORD_DEFAULT);"
+    // e incollalo in config.local.php. Vuoto = area admin disattivata.
+    'admin_password_hash' => '',
 
-// Funzione per logging
-function logMessage($message, $level = 'INFO') {
-    if (!DEBUG_MODE) return;
+    // Cartella dati (PDF, registro, chiavi). Meglio FUORI dalla public_html,
+    // es. dirname(__DIR__, 2) . '/consensi_storage'. Di default è protetta da .htaccess.
+    'storage_dir'        => dirname(__DIR__) . '/storage',
 
-    $logFile = ROOT_PATH . '/logs/app.log';
-    $timestamp = date('Y-m-d H:i:s');
-    $logEntry = "[$timestamp] [$level] $message" . PHP_EOL;
+    'timezone'           => 'Europe/Rome',
+    'debug'              => false,
+];
 
-    if (!is_dir(dirname($logFile))) {
-        mkdir(dirname($logFile), 0755, true);
+$local = __DIR__ . '/config.local.php';
+if (is_file($local)) {
+    $override = require $local;
+    if (is_array($override)) {
+        $config = array_replace_recursive($config, $override);
     }
-
-    file_put_contents($logFile, $logEntry, FILE_APPEND | LOCK_EX);
 }
+
+return $config;

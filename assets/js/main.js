@@ -1,254 +1,138 @@
-/**
- * Novazione Landing Page
- * Main JavaScript File
- */
+/* Novazione – interazioni e invio del modulo. Funziona anche senza JS (fallback POST). */
+(function () {
+    'use strict';
+    document.documentElement.classList.add('js');
 
-document.addEventListener('DOMContentLoaded', function() {
-    // Smooth scroll for navigation links
-    initSmoothScroll();
-
-    // Form validation
-    initFormValidation();
-
-    // Header scroll effect
-    initHeaderScroll();
-
-    // Animation on scroll
-    initScrollAnimations();
-});
-
-/**
- * Smooth scroll for anchor links
- */
-function initSmoothScroll() {
-    document.querySelectorAll('a[href^="#"]').forEach(anchor => {
-        anchor.addEventListener('click', function(e) {
-            e.preventDefault();
-            const target = document.querySelector(this.getAttribute('href'));
-            if (target) {
-                const headerOffset = 80;
-                const elementPosition = target.getBoundingClientRect().top;
-                const offsetPosition = elementPosition + window.pageYOffset - headerOffset;
-
-                window.scrollTo({
-                    top: offsetPosition,
-                    behavior: 'smooth'
-                });
-            }
-        });
-    });
-}
-
-/**
- * Form validation and submission
- */
-function initFormValidation() {
-    const form = document.getElementById('contactForm');
-    if (!form) return;
-
-    const inputs = form.querySelectorAll('input, textarea');
-
-    // Real-time validation
-    inputs.forEach(input => {
-        input.addEventListener('blur', function() {
-            validateField(this);
-        });
-
-        input.addEventListener('input', function() {
-            if (this.classList.contains('error')) {
-                validateField(this);
-            }
-        });
-    });
-
-    // Form submission
-    form.addEventListener('submit', function(e) {
-        let isValid = true;
-
-        // Validate all fields
-        inputs.forEach(input => {
-            if (!validateField(input)) {
-                isValid = false;
-            }
-        });
-
-        // Check privacy checkbox
-        const privacyCheckbox = document.getElementById('privacy');
-        if (!privacyCheckbox.checked) {
-            isValid = false;
-            showError(privacyCheckbox, 'Devi accettare l\'informativa sulla privacy');
-        }
-
-        if (!isValid) {
-            e.preventDefault();
-            // Scroll to first error
-            const firstError = form.querySelector('.error');
-            if (firstError) {
-                firstError.scrollIntoView({ behavior: 'smooth', block: 'center' });
-            }
-        } else {
-            // Show loading state
-            const submitBtn = form.querySelector('.submit-button');
-            submitBtn.classList.add('loading');
-            submitBtn.innerHTML = '<span>Invio in corso...</span>';
-        }
-    });
-}
-
-/**
- * Validate a single field
- */
-function validateField(field) {
-    const value = field.value.trim();
-    let isValid = true;
-    let errorMessage = '';
-
-    // Remove previous error
-    clearError(field);
-
-    // Skip non-required empty fields
-    if (!field.required && value === '') {
-        return true;
+    // Header con ombra allo scroll
+    var header = document.querySelector('.header');
+    if (header) {
+        var onScroll = function () { header.classList.toggle('scrolled', window.scrollY > 40); };
+        window.addEventListener('scroll', onScroll, { passive: true });
+        onScroll();
     }
 
-    // Required field validation
-    if (field.required && value === '') {
-        isValid = false;
-        errorMessage = 'Questo campo è obbligatorio';
+    // Animazioni d'ingresso
+    var revealEls = document.querySelectorAll('.service-card, .contact-info, .contact-form-container');
+    if ('IntersectionObserver' in window) {
+        var io = new IntersectionObserver(function (entries) {
+            entries.forEach(function (en) {
+                if (en.isIntersecting) { en.target.classList.add('visible'); io.unobserve(en.target); }
+            });
+        }, { threshold: 0.12 });
+        revealEls.forEach(function (el) { el.classList.add('reveal'); io.observe(el); });
     }
 
-    // Email validation
-    if (isValid && field.type === 'email') {
-        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-        if (!emailRegex.test(value)) {
-            isValid = false;
-            errorMessage = 'Inserisci un indirizzo email valido';
-        }
+    var form = document.getElementById('contactForm');
+    if (!form) { return; }
+
+    var alertBox = document.getElementById('form-alert');
+    var button = form.querySelector('.submit-button');
+    var label = button.querySelector('.btn-label');
+    var defaultLabel = label.textContent;
+
+    // Contatore caratteri del messaggio
+    var msg = document.getElementById('messaggio');
+    var counter = document.getElementById('messaggio-count');
+    if (msg && counter) {
+        var upd = function () {
+            var n = msg.value.length;
+            counter.textContent = n > 1500 ? n + ' / 2000' : '';
+        };
+        msg.addEventListener('input', upd);
+        upd();
     }
 
-    // Phone validation
-    if (isValid && field.type === 'tel') {
-        const phoneRegex = /^[\+]?[0-9\s]{10,15}$/;
-        if (!phoneRegex.test(value.replace(/\s/g, ''))) {
-            isValid = false;
-            errorMessage = 'Inserisci un numero di telefono valido';
-        }
+    function normalizePhone(v) {
+        var p = v.replace(/[\s\-.\/()]/g, '');
+        if (p.indexOf('00') === 0) { p = '+' + p.slice(2); }
+        if (p && p.charAt(0) !== '+') { p = '+39' + p; }
+        return p;
     }
 
-    // Name validation (min 2 chars)
-    if (isValid && (field.name === 'nome' || field.name === 'cognome')) {
-        if (value.length < 2) {
-            isValid = false;
-            errorMessage = 'Deve contenere almeno 2 caratteri';
-        }
-    }
-
-    if (!isValid) {
-        showError(field, errorMessage);
-    }
-
-    return isValid;
-}
-
-/**
- * Show error message for a field
- */
-function showError(field, message) {
-    field.classList.add('error');
-
-    // Create error message element
-    let errorEl = field.parentNode.querySelector('.error-message');
-    if (!errorEl) {
-        errorEl = document.createElement('span');
-        errorEl.className = 'error-message';
-        field.parentNode.appendChild(errorEl);
-    }
-    errorEl.textContent = message;
-
-    // Add error styles
-    field.style.borderColor = '#ef4444';
-}
-
-/**
- * Clear error from a field
- */
-function clearError(field) {
-    field.classList.remove('error');
-    field.style.borderColor = '';
-
-    const errorEl = field.parentNode.querySelector('.error-message');
-    if (errorEl) {
-        errorEl.remove();
-    }
-}
-
-/**
- * Header scroll effect
- */
-function initHeaderScroll() {
-    const header = document.querySelector('.header');
-    if (!header) return;
-
-    let lastScroll = 0;
-
-    window.addEventListener('scroll', function() {
-        const currentScroll = window.pageYOffset;
-
-        if (currentScroll > 100) {
-            header.style.boxShadow = '0 4px 6px -1px rgb(0 0 0 / 0.1)';
-        } else {
-            header.style.boxShadow = 'none';
-        }
-
-        lastScroll = currentScroll;
-    });
-}
-
-/**
- * Animation on scroll
- */
-function initScrollAnimations() {
-    const observerOptions = {
-        root: null,
-        rootMargin: '0px',
-        threshold: 0.1
+    var namePattern = /^[\p{L}\p{M}][\p{L}\p{M}' .\-]{1,59}$/u;
+    var rules = {
+        nome: function (v) { return namePattern.test(v.trim()) ? '' : 'Inserisci un nome valido (almeno 2 lettere).'; },
+        cognome: function (v) { return namePattern.test(v.trim()) ? '' : 'Inserisci un cognome valido (almeno 2 lettere).'; },
+        email: function (v) { return /^[^\s@]+@[^\s@]+\.[a-z]{2,}$/i.test(v.trim()) ? '' : 'Inserisci un indirizzo email valido.'; },
+        telefono: function (v) { return /^\+[1-9]\d{7,14}$/.test(normalizePhone(v)) ? '' : 'Inserisci un numero di cellulare valido (es. 333 123 4567).'; },
+        privacy: function (_, el) { return el.checked ? '' : 'Per inviare la richiesta è necessario accettare l\'informativa privacy.'; }
     };
 
-    const observer = new IntersectionObserver((entries) => {
-        entries.forEach(entry => {
-            if (entry.isIntersecting) {
-                entry.target.classList.add('fade-in-up');
-                observer.unobserve(entry.target);
-            }
+    function setError(name, message) {
+        var field = form.elements[name];
+        var err = document.getElementById('err-' + name);
+        if (!field) { return; }
+        if (message) { field.setAttribute('aria-invalid', 'true'); } else { field.removeAttribute('aria-invalid'); }
+        if (err) { err.textContent = message || ''; }
+    }
+
+    function validateField(name) {
+        var field = form.elements[name];
+        if (!field || !rules[name]) { return true; }
+        var m = rules[name](field.value || '', field);
+        setError(name, m);
+        return !m;
+    }
+
+    Object.keys(rules).forEach(function (name) {
+        var field = form.elements[name];
+        if (!field) { return; }
+        var ev = field.type === 'checkbox' ? 'change' : 'blur';
+        field.addEventListener(ev, function () { validateField(name); });
+        field.addEventListener('input', function () {
+            if (field.getAttribute('aria-invalid') === 'true') { validateField(name); }
         });
-    }, observerOptions);
-
-    // Observe elements
-    document.querySelectorAll('.service-card, .contact-form-container, .contact-info').forEach(el => {
-        el.style.opacity = '0';
-        observer.observe(el);
     });
-}
 
-// Add error message styles dynamically
-const errorStyles = document.createElement('style');
-errorStyles.textContent = `
-    .error-message {
-        display: block;
-        color: #ef4444;
-        font-size: 0.85rem;
-        margin-top: 0.25rem;
+    function showAlert(text) {
+        alertBox.querySelector('span').textContent = text;
+        alertBox.hidden = !text;
     }
 
-    .form-group input.error,
-    .form-group textarea.error {
-        border-color: #ef4444 !important;
-        background-color: #fef2f2 !important;
+    function setLoading(on) {
+        button.disabled = on;
+        button.classList.toggle('loading', on);
+        label.textContent = on ? 'Invio in corso…' : defaultLabel;
     }
 
-    .form-group input.error:focus,
-    .form-group textarea.error:focus {
-        box-shadow: 0 0 0 4px rgba(239, 68, 68, 0.2) !important;
-    }
-`;
-document.head.appendChild(errorStyles);
+    form.addEventListener('submit', function (e) {
+        var ok = true;
+        Object.keys(rules).forEach(function (n) { if (!validateField(n)) { ok = false; } });
+        if (!ok) {
+            e.preventDefault();
+            showAlert('Controlla i campi evidenziati.');
+            var first = form.querySelector('[aria-invalid="true"]');
+            if (first) { first.focus(); }
+            return;
+        }
+        if (!window.fetch || !window.FormData) { setLoading(true); return; } // invio classico
+
+        e.preventDefault();
+        showAlert('');
+        setLoading(true);
+
+        fetch(form.action, {
+            method: 'POST',
+            body: new FormData(form),
+            headers: { 'Accept': 'application/json' },
+            credentials: 'same-origin'
+        }).then(function (res) {
+            return res.json().catch(function () { return { ok: false, message: 'Risposta non valida dal server.' }; });
+        }).then(function (data) {
+            if (data.ok) {
+                window.location.href = data.redirect || 'success.php';
+                return;
+            }
+            setLoading(false);
+            if (data.errors) {
+                Object.keys(data.errors).forEach(function (n) { setError(n, data.errors[n]); });
+                var first = form.querySelector('[aria-invalid="true"]');
+                if (first) { first.focus(); }
+            }
+            showAlert(data.message || 'Si è verificato un errore. Riprova.');
+        }).catch(function () {
+            setLoading(false);
+            showAlert('Connessione non riuscita. Verifica la rete e riprova.');
+        });
+    });
+})();

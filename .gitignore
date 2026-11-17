@@ -1,33 +1,15 @@
-# Dependencies
-/vendor/*
-!/vendor/tcpdf/
+# Dati personali, chiavi e log generati a runtime: MAI su Git
+/storage/
 
-# Generated files
-/pdfs/*
-!/pdfs/.gitkeep
-/data/*
-!/data/.gitkeep
-/logs/*
-!/logs/.gitkeep
+# Configurazione locale con password
+/includes/config.local.php
 
-# Environment
+# Composer: vendor/ è versionato di proposito (gli hosting condivisi spesso
+# non hanno Composer), ma niente cache
+composer.phar
+
 .env
-.env.local
-.env.*.local
-
-# IDE
-.idea/
-.vscode/
-*.swp
-*.swo
-*~
-
-# OS
 .DS_Store
 Thumbs.db
-
-# Composer
-composer.lock
-
-# Cache
-*.cache
+.idea/
+.vscode/
