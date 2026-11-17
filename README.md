@@ -49,6 +49,14 @@ Tutto in `storage/` (creata al primo invio, protetta da `.htaccess`):
 - `logs/` – log applicativo (senza dati personali).
 
 Per maggiore sicurezza puoi spostare `storage` fuori da `public_html` impostando `storage_dir` in `config.local.php`.
+L'area admin controlla da sola che `storage/` non sia scaricabile e mostra un avviso rosso in caso contrario.
+
+Su **nginx** (che ignora `.htaccess`) aggiungi alla configurazione del sito:
+
+```nginx
+location ~ ^/sviluppo/(includes|vendor|storage|tests|deploy)/ { deny all; return 404; }
+location ~ /\.  { deny all; }
+```
 
 ## Test
 

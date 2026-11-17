@@ -42,6 +42,8 @@ class Mailer
             $from = mail_from_address();
             $mail->setFrom($from, cfg('mail_from_name'));
             $mail->Sender = $from; // Return-Path allineato al mittente (SPF)
+            // Message-ID sul dominio del mittente, non sull'header Host della richiesta
+            $mail->Hostname = substr(strrchr($from, '@'), 1);
             $mail->addAddress($to);
             if ($replyTo && PHPMailer::validateAddress($replyTo)) {
                 $mail->addReplyTo($replyTo);

@@ -45,6 +45,31 @@ class Storage
         }
     }
 
+    /**
+     * Controlla dall'esterno che la cartella dati NON sia scaricabile dal web
+     * (es. server nginx che ignora .htaccess). Ritorna true = protetta,
+     * false = PUBBLICA, null = verifica non possibile.
+     */
+    public static function isWebProtected($baseUrl)
+    {
+        $root = realpath(self::path());
+        $app = realpath(APP_ROOT);
+        if ($root === false || $app === false || strpos($root, $app . DIRECTORY_SEPARATOR) !== 0) {
+            return true; // fuori dalla cartella pubblicata
+        }
+        $probe = $root . '/probe.txt';
+        if (!is_file($probe)) {
+            @file_put_contents($probe, 'riservato');
+        }
+        $url = rtrim($baseUrl, '/') . '/' . str_replace('\\', '/', substr($root, strlen($app) + 1)) . '/probe.txt';
+        $ctx = stream_context_create(['http' => ['timeout' => 4, 'ignore_errors' => true, 'follow_location' => 0], 'ssl' => ['verify_peer' => true]]);
+        $body = @file_get_contents($url, false, $ctx);
+        if ($body === false || empty($http_response_header[0])) {
+            return null;
+        }
+        return !(strpos($http_response_header[0], ' 200') !== false && trim($body) === 'riservato');
+    }
+
     /** Scrittura atomica: scrive su file temporaneo e rinomina. */
     public static function writeAtomic($file, $data)
     {
@@ -69,25 +94,37 @@ class Storage
             return $key;
         }
         $file = self::path('keys') . '/secret.key';
-        if (!is_file($file)) {
-            $fp = fopen($file, 'c+');
-            if ($fp && flock($fp, LOCK_EX)) {
-                clearstatcache(true, $file);
-                if (filesize($file) === 0) {
-                    fwrite($fp, bin2hex(random_bytes(32)));
-                    fflush($fp);
-                }
-                flock($fp, LOCK_UN);
-            }
-            if ($fp) {
-                fclose($fp);
-            }
-            @chmod($file, 0600);
+        $fp = fopen($file, 'c+');
+        if (!$fp || !flock($fp, LOCK_EX)) {
+            throw new RuntimeException('Chiave segreta non accessibile.');
         }
-        $key = trim((string) file_get_contents($file));
-        if (strlen($key) < 64) {
+        $value = trim((string) stream_get_contents($fp));
+        if ($value === '') {
+            $value = bin2hex(random_bytes(32));
+            fwrite($fp, $value);
+            fflush($fp);
+        }
+        flock($fp, LOCK_UN);
+        fclose($fp);
+        @chmod($file, 0600);
+        if (strlen($value) < 64) {
             throw new RuntimeException('Chiave segreta non valida.');
         }
-        return $key;
+        return $key = $value;
+    }
+
+    /** Esegue $fn con un lock esclusivo su un file di lock nello storage. */
+    public static function withLock($name, callable $fn)
+    {
+        $fp = fopen(self::path('keys') . '/' . $name . '.lock', 'c');
+        if (!$fp || !flock($fp, LOCK_EX)) {
+            throw new RuntimeException('Lock non disponibile.');
+        }
+        try {
+            return $fn();
+        } finally {
+            flock($fp, LOCK_UN);
+            fclose($fp);
+        }
     }
 }

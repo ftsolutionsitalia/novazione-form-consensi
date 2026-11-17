@@ -28,7 +28,15 @@ require __DIR__ . '/icons.php';
 require __DIR__ . '/layout.php';
 
 ini_set('log_errors', '1');
-ini_set('error_log', Storage::path('logs') . '/php-error.log');
+$GLOBALS['STORAGE_ERROR'] = null;
+try {
+    ini_set('error_log', Storage::path('logs') . '/php-error.log');
+    Storage::secretKey();
+} catch (Throwable $ex) {
+    // Le pagine restano visibili; il modulo mostra un avviso invece di rompersi
+    $GLOBALS['STORAGE_ERROR'] = $ex->getMessage();
+    error_log('Novazione: storage non disponibile - ' . $ex->getMessage());
+}
 
 Security::startSession();
 Security::sendSecurityHeaders();
@@ -55,6 +63,10 @@ function e($value)
 /** Log applicativo (sempre attivo, senza dati personali in chiaro). */
 function app_log($message, $level = 'INFO')
 {
+    if ($GLOBALS['STORAGE_ERROR'] ?? null) {
+        error_log("Novazione [$level] $message");
+        return;
+    }
     $line = sprintf("[%s] [%s] %s\n", date('c'), $level, $message);
     @file_put_contents(Storage::path('logs') . '/app.log', $line, FILE_APPEND | LOCK_EX);
 }
@@ -74,6 +86,10 @@ function flash($key, $value = null)
 /** URL base dell'applicazione (es. https://dominio.it/sviluppo). */
 function base_url()
 {
+    $configured = rtrim((string) cfg('site_url'), '/');
+    if ($configured !== '') {
+        return $configured;
+    }
     $https = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off')
         || (($_SERVER['HTTP_X_FORWARDED_PROTO'] ?? '') === 'https');
     $host = $_SERVER['HTTP_HOST'] ?? 'localhost';

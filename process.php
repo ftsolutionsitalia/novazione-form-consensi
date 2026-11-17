@@ -71,7 +71,13 @@ try {
 
     // --- Controlli anti-abuso --------------------------------------------
     if (!Security::checkCsrf($_POST['csrf_token'] ?? null)) {
-        respond(false, ['status' => 403, 'message' => 'Sessione scaduta: ricarica la pagina e riprova.'], $wantsJson);
+        respond(false, [
+            'status'  => 403,
+            'message' => 'Sessione scaduta: ricarica la pagina e riprova.',
+            // Token nuovi per un nuovo tentativo automatico: una pagina di un altro sito
+            // non può leggere questa risposta (same-origin policy), quindi la protezione resta.
+            'refresh' => ['csrf_token' => Security::csrfToken(), 'form_ts' => Security::formIssuedToken((int) cfg('min_fill_seconds', 3))],
+        ], $wantsJson);
     }
 
     $isBot = trim((string) ($_POST['website'] ?? '')) !== ''
@@ -83,8 +89,10 @@ try {
     }
 
     $rl = cfg('rate_limit');
-    if (!Security::rateLimit('submit', $ip, (int) $rl['max'], (int) $rl['window'])) {
-        respond(false, ['status' => 429, 'message' => 'Hai inviato troppe richieste. Riprova tra un\'ora o contattaci telefonicamente.'], $wantsJson);
+    $tooMany = 'Hai inviato troppe richieste. Riprova tra un\'ora o contattaci telefonicamente.';
+    // Limite largo su tutti i tentativi (anche errati), stretto solo sugli invii validi
+    if (!Security::rateLimit('attempt', $ip, 10 * (int) $rl['max'], (int) $rl['window'])) {
+        respond(false, ['status' => 429, 'message' => $tooMany], $wantsJson);
     }
 
     // --- Validazione ------------------------------------------------------
@@ -122,10 +130,17 @@ try {
         ], $wantsJson);
     }
 
+    if (!Security::rateLimit('submit', $ip, (int) $rl['max'], (int) $rl['window'])) {
+        respond(false, ['status' => 429, 'message' => $tooMany], $wantsJson);
+    }
+
     // --- Costruzione del record ------------------------------------------
     $referer = (string) ($_SERVER['HTTP_REFERER'] ?? '');
     $sameHost = parse_url($referer, PHP_URL_HOST) === parse_url(base_url(), PHP_URL_HOST);
-    $sourceUrl = $sameHost ? strtok($referer, '#') : base_url() . '/index.php';
+    $sourceUrl = $sameHost ? clean_line(strtok($referer, '#'), 300) : '';
+    if ($sourceUrl === '') {
+        $sourceUrl = base_url() . '/index.php';
+    }
 
     $record = [
         'id'              => ConsentLedger::newId(),
@@ -142,7 +157,7 @@ try {
         'marketing_text'  => cfg('consents.marketing'),
         'ip'              => $ip,
         'user_agent'      => clean_line($_SERVER['HTTP_USER_AGENT'] ?? 'n/d', 400),
-        'source_url'      => mb_substr($sourceUrl, 0, 300),
+        'source_url'      => $sourceUrl,
     ];
 
     $dataHash  = PDFGenerator::dataHash($record);
@@ -180,7 +195,7 @@ try {
     $userOk = null;
     if (cfg('send_user_copy')) {
         $confirmUrl = ($marketing && cfg('double_opt_in'))
-            ? base_url() . '/confirm.php?id=' . rawurlencode($record['id']) . '&t=' . hash_hmac('sha256', 'doi|' . $record['id'], Storage::secretKey())
+            ? base_url() . '/confirm.php?id=' . rawurlencode($record['id']) . '&t=' . Security::doiToken($record['id'])
             : null;
         $userOk = Mailer::send(
             $email,

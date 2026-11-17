@@ -9,7 +9,7 @@ require __DIR__ . '/includes/bootstrap.php';
 $id = (string) ($_REQUEST['id'] ?? '');
 $t  = (string) ($_REQUEST['t'] ?? '');
 $valid = preg_match('/^CNS-\d{8}-[A-Z0-9]{8}$/', $id)
-    && hash_equals(hash_hmac('sha256', 'doi|' . $id, Storage::secretKey()), $t);
+    && hash_equals(Security::doiToken($id), $t);
 
 $state = 'invalid';
 $record = $valid ? ConsentLedger::findConsent($id, true) : null;

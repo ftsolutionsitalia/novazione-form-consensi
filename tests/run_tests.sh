@@ -13,6 +13,7 @@ STORAGE=${STORAGE:-/var/www/public_html/sviluppo/storage}
 MAILDIR=${MAILDIR:-/tmp/mailcap}
 ADMIN_PASS=${ADMIN_PASS:-TestPass!2026}
 TMP=$(mktemp -d)
+rm -f "$STORAGE"/ratelimit/*.json 2>/dev/null  # ogni esecuzione parte con contatori puliti
 PASS=0; FAIL=0
 
 ok()   { PASS=$((PASS+1)); printf '  \033[32mOK\033[0m   %s\n' "$1"; }
@@ -183,7 +184,7 @@ open_form e
 out=$(submit e 10.0.1.6 "${valid_fields[@]}")
 check "Invio istantaneo (bot) -> finto successo, nulla registrato" '[ "$(printf "%s" "$out" | tail -1)" = 200 ] && [ "$(ledger_count)" = "$n0" ]'
 open_form e; sleep 1.2
-out=$(submit e 10.0.1.7 "${valid_fields[@]}" --data-urlencode "form_ts=1700000000.0000000000000000")
+out=$(submit e 10.0.1.7 "${valid_fields[@]}" --data-urlencode "form_ts=1700000000000.0000000000000000")
 check "Token temporale falsificato -> scartato" '[ "$(ledger_count)" = "$n0" ]'
 code=$(curl -s -o /dev/null -w '%{http_code}' "$BASE/process.php")
 check "GET su process.php -> redirect" '[ "$code" = 303 ]'
@@ -266,6 +267,47 @@ done; wait
 check "10 invii paralleli -> 20 eventi registrati" '[ $(( $(ledger_count) - before )) = 20 ]' "delta $(( $(ledger_count) - before ))"
 dash=$(curl -s -b "$TMP/cj_ad" "$BASE/admin.php")
 check "Catena integra dopo invii concorrenti" 'printf "%s" "$dash" | grep -q "Registro integro"'
+
+section "13. Correzioni dalla code review"
+rm -f "$MAILDIR"/*
+open_form h; sleep 1.2
+sid=$(awk '$6=="nvz_sid"{print $7}' "$TMP/cj_h")  # curl non invia il cookie se l'Host è cambiato: lo passiamo a mano
+curl -s -o /dev/null -H "Cookie: nvz_sid=$sid" -H 'Accept: application/json' -H "X-Forwarded-For: 10.6.0.1" -H "Host: evil.example" \
+  --data-urlencode "csrf_token=$CSRF" --data-urlencode "form_ts=$TS" --data-urlencode "nome=Host" --data-urlencode "cognome=Injection" \
+  --data-urlencode "email=host@example.com" --data-urlencode "telefono=3331234567" --data-urlencode "privacy=1" --data-urlencode "marketing=1" "$BASE/process.php"
+sleep 0.5
+decoded=$(python3 -I -c "
+import email,glob,sys
+for f in glob.glob(sys.argv[1]+'/*.eml'):
+    m=email.message_from_bytes(open(f,'rb').read()); print(m.as_string()[:3000])
+    for p in m.walk():
+        if p.get_content_maintype()=='text': print(p.get_payload(decode=True).decode())
+" "$MAILDIR")
+check "Host header falsificato: link e Message-ID usano site_url" '! printf "%s" "$decoded" | grep -q "evil.example" && printf "%s" "$decoded" | grep -q "127.0.0.1:8091/sviluppo/confirm.php"'
+open_form s; sleep 1.2
+out=$(curl -s -H 'Accept: application/json' -H "X-Forwarded-For: 10.6.0.2" -c "$TMP/cj_s2" -w '\n%{http_code}' \
+  --data-urlencode "csrf_token=$CSRF" --data-urlencode "form_ts=$TS" "${valid_fields[@]}" "$BASE/process.php")
+check "Sessione scaduta -> 403 con token nuovi" '[ "$(printf "%s" "$out" | tail -1)" = 403 ] && printf "%s" "$out" | head -n -1 | json "d[\"refresh\"][\"csrf_token\"]" | grep -Eq "^[a-f0-9]{64}$"'
+nc=$(printf '%s' "$out" | head -n -1 | json 'd["refresh"]["csrf_token"]'); nt=$(printf '%s' "$out" | head -n -1 | json 'd["refresh"]["form_ts"]')
+n0=$(ledger_count)
+out=$(curl -s -b "$TMP/cj_s2" -H 'Accept: application/json' -H "X-Forwarded-For: 10.6.0.2" -w '\n%{http_code}' \
+  --data-urlencode "csrf_token=$nc" --data-urlencode "form_ts=$nt" "${valid_fields[@]}" "$BASE/process.php")
+check "Nuovo tentativo automatico con i token nuovi registra il consenso" '[ "$(printf "%s" "$out" | tail -1)" = 200 ] && [ $(( $(ledger_count) - n0 )) = 2 ]'
+open_form b; sleep 1.2
+out=$(curl -s -b "$TMP/cj_b" -H 'Accept: application/json' -H "X-Forwarded-For: 10.6.0.3" -H $'Referer: http://127.0.0.1:8091/sviluppo/index.php?x=\xc3\x28\xff' \
+  --data-urlencode "csrf_token=$CSRF" --data-urlencode "form_ts=$TS" "${valid_fields[@]}" "$BASE/process.php")
+bid=$(printf '%s' "$out" | json 'd.get("id","")')
+check "Referer con UTF-8 non valido: pratica salvata integra" '[ -n "$bid" ] && python3 -c "import json,sys;d=json.load(open(sys.argv[1]));assert d[\"nome\"]==\"Mario\"" "$STORAGE/records/$bid.json"'
+codes=""
+for i in 1 2 3 4 5 6; do open_form q; sleep 1.1; codes="$codes $(submit q 10.6.0.4 --data-urlencode "nome=X" | tail -1)"; done
+open_form q; sleep 1.1; last=$(submit q 10.6.0.4 "${valid_fields[@]}" | tail -1)
+check "6 errori di battitura non bloccano l'invio corretto ($codes -> $last)" '[ "$last" = 200 ]'
+dash=$(curl -s -b "$TMP/cj_ad" "$BASE/admin.php?recheck=1")
+check "Admin: autoverifica cartella dati protetta (nessun avviso)" '! printf "%s" "$dash" | grep -q "PERICOLO" && ! printf "%s" "$dash" | grep -q "Non è stato possibile verificare"'
+chmod 000 "$STORAGE"
+page=$(curl -s -w '\n%{http_code}' "$BASE/index.php")
+chmod 750 "$STORAGE"
+check "Cartella dati non scrivibile: la landing resta online con avviso" '[ "$(printf "%s" "$page" | tail -1)" = 200 ] && printf "%s" "$page" | grep -q "temporaneamente non disponibile" && printf "%s" "$page" | grep -q "Trasformiamo"'
 
 # ---------------------------------------------------------------------------
 rm -rf "$TMP"

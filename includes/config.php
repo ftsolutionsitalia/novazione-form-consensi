@@ -53,9 +53,14 @@ $config = [
         'marketing'   => "Acconsento a ricevere comunicazioni commerciali e promozionali via email, telefono, SMS e WhatsApp (facoltativo, revocabile in qualsiasi momento - art. 6.1.a GDPR).",
     ],
 
+    // URL pubblico del sito, usato nei link di email e PDF (QR, conferma, verifica).
+    // Impostalo sempre in produzione: se vuoto si usa l'header Host della richiesta,
+    // che un attaccante può falsificare se il sito è il virtual host predefinito.
+    'site_url'           => '',
+
     // --- Sicurezza ---------------------------------------------------------
-    // Proxy fidati: solo se REMOTE_ADDR è in questa lista si legge X-Forwarded-For.
-    // Usa 'cloudflare' come voce per fidarsi dell'header CF-Connecting-IP.
+    // Proxy fidati (IP o reti CIDR): solo se REMOTE_ADDR è qui si legge X-Forwarded-For.
+    // Aggiungi 'cloudflare' per usare CF-Connecting-IP (accettato solo dagli IP di Cloudflare).
     'trusted_proxies'    => [],
     'rate_limit'         => ['max' => 5, 'window' => 3600],  // invii per IP all'ora
     'min_fill_seconds'   => 3,      // invii più rapidi = bot
@@ -68,7 +73,7 @@ $config = [
 
     // Cartella dati (PDF, registro, chiavi). Meglio FUORI dalla public_html,
     // es. dirname(__DIR__, 2) . '/consensi_storage'. Di default è protetta da .htaccess.
-    'storage_dir'        => dirname(__DIR__) . '/storage',
+    'storage_dir'        => getenv('NOVAZIONE_STORAGE') ?: dirname(__DIR__) . '/storage',
 
     'timezone'           => 'Europe/Rome',
     'debug'              => false,

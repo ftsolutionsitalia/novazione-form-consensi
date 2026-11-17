@@ -95,6 +95,8 @@
         label.textContent = on ? 'Invio in corso…' : defaultLabel;
     }
 
+    var retried = false;
+
     form.addEventListener('submit', function (e) {
         var ok = true;
         Object.keys(rules).forEach(function (n) { if (!validateField(n)) { ok = false; } });
@@ -121,6 +123,15 @@
         }).then(function (data) {
             if (data.ok) {
                 window.location.href = data.redirect || 'success.php';
+                return;
+            }
+            // Sessione scaduta mentre si compilava: aggiorna i token e reinvia una volta
+            if (data.refresh && !retried) {
+                retried = true;
+                form.elements.csrf_token.value = data.refresh.csrf_token;
+                form.elements.form_ts.value = data.refresh.form_ts;
+                setLoading(false);
+                setTimeout(function () { form.requestSubmit ? form.requestSubmit() : form.dispatchEvent(new Event('submit', { cancelable: true })); }, 50);
                 return;
             }
             setLoading(false);

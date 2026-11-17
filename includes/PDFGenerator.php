@@ -197,29 +197,41 @@ Email: ' . e($c['email']) . ($c['pec'] ? ' â€” PEC: ' . e($c['pec']) : '') . ' â
         $key = $dir . '/sign.key';
 
         if (!is_file($crt) || !is_file($key)) {
-            if (!function_exists('openssl_pkey_new')) {
-                app_log('OpenSSL non disponibile: PDF non firmato', 'WARN');
+            $made = Storage::withLock('sign', function () use ($crt, $key) {
+                clearstatcache();
+                return (is_file($crt) && is_file($key)) ? true : self::createCertificate($crt, $key);
+            });
+            if (!$made) {
                 return null;
             }
-            $c = cfg('company');
-            $pkey = @openssl_pkey_new(['private_key_bits' => 2048, 'private_key_type' => OPENSSL_KEYTYPE_RSA]);
-            if (!$pkey) {
-                app_log('Generazione chiave di firma fallita: ' . openssl_error_string(), 'WARN');
-                return null;
-            }
-            $dn = ['commonName' => mb_substr($c['name'], 0, 64), 'organizationName' => mb_substr($c['name'], 0, 64), 'countryName' => 'IT', 'stateOrProvinceName' => 'Italia', 'localityName' => mb_substr($c['address'], 0, 64)];
-            $csr = @openssl_csr_new($dn, $pkey, ['digest_alg' => 'sha256']);
-            $x509 = $csr ? @openssl_csr_sign($csr, null, $pkey, 3650, ['digest_alg' => 'sha256'], random_int(1, PHP_INT_MAX)) : false;
-            if (!$x509) {
-                app_log('Generazione certificato di firma fallita', 'WARN');
-                return null;
-            }
-            openssl_x509_export($x509, $crtPem);
-            openssl_pkey_export($pkey, $keyPem);
-            Storage::writeAtomic($key, $keyPem);
-            Storage::writeAtomic($crt, $crtPem);
-            @chmod($key, 0600);
         }
         return ['crt' => 'file://' . realpath($crt), 'key' => 'file://' . realpath($key)];
+    }
+
+    private static function createCertificate($crt, $key)
+    {
+        if (!function_exists('openssl_pkey_new')) {
+            app_log('OpenSSL non disponibile: PDF non firmato', 'WARN');
+            return false;
+        }
+        $c = cfg('company');
+        $pkey = @openssl_pkey_new(['private_key_bits' => 2048, 'private_key_type' => OPENSSL_KEYTYPE_RSA]);
+        if (!$pkey) {
+            app_log('Generazione chiave di firma fallita: ' . openssl_error_string(), 'WARN');
+            return false;
+        }
+        $dn = ['commonName' => mb_substr($c['name'], 0, 64), 'organizationName' => mb_substr($c['name'], 0, 64), 'countryName' => 'IT', 'stateOrProvinceName' => 'Italia', 'localityName' => mb_substr($c['address'], 0, 64)];
+        $csr = @openssl_csr_new($dn, $pkey, ['digest_alg' => 'sha256']);
+        $x509 = $csr ? @openssl_csr_sign($csr, null, $pkey, 3650, ['digest_alg' => 'sha256'], random_int(1, PHP_INT_MAX)) : false;
+        if (!$x509) {
+            app_log('Generazione certificato di firma fallita', 'WARN');
+            return false;
+        }
+        openssl_x509_export($x509, $crtPem);
+        openssl_pkey_export($pkey, $keyPem);
+        Storage::writeAtomic($key, $keyPem);
+        Storage::writeAtomic($crt, $crtPem);
+        @chmod($key, 0600);
+        return true;
     }
 }

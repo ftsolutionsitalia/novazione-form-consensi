@@ -33,6 +33,16 @@ class ConsentLedger
         return 'CNS-' . date('Ymd') . '-' . $s;
     }
 
+    /** json_encode che non fallisce mai in silenzio (UTF-8 non valido sostituito). */
+    public static function json($data, $flags = 0)
+    {
+        $out = json_encode($data, $flags | JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_INVALID_UTF8_SUBSTITUTE);
+        if ($out === false) {
+            throw new RuntimeException('Serializzazione JSON fallita: ' . json_last_error_msg());
+        }
+        return $out;
+    }
+
     /** JSON canonico (chiavi ordinate) per un hash stabile. */
     public static function canonical(array $data)
     {
@@ -45,13 +55,34 @@ class ConsentLedger
             }
         };
         $sort($data);
-        return json_encode($data, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
+        return self::json($data);
     }
 
     private static function sign(array $entry)
     {
         unset($entry['hash']);
         return hash_hmac('sha256', self::canonical($entry), Storage::secretKey());
+    }
+
+    /** Ultima riga non vuota del file, leggendo a blocchi dalla fine. */
+    private static function lastLine($fp)
+    {
+        fseek($fp, 0, SEEK_END);
+        $pos = ftell($fp);
+        $buf = '';
+        while ($pos > 0) {
+            $chunk = min(8192, $pos);
+            $pos -= $chunk;
+            fseek($fp, $pos);
+            $buf = fread($fp, $chunk) . $buf;
+            $trimmed = rtrim($buf, "\r\n");
+            $nl = strrpos($trimmed, "\n");
+            if ($nl !== false) {
+                return substr($trimmed, $nl + 1);
+            }
+        }
+        $trimmed = rtrim($buf, "\r\n");
+        return $trimmed === '' ? null : $trimmed;
     }
 
     /**
@@ -65,20 +96,17 @@ class ConsentLedger
             throw new RuntimeException('Registro consensi non accessibile.');
         }
         try {
-            $last = null;
+            // Legge solo l'ultima riga (dalla fine del file), non l'intero registro
             $seq = 0;
-            rewind($fp);
-            while (($line = fgets($fp)) !== false) {
-                $line = trim($line);
-                if ($line !== '') {
-                    $last = $line;
-                    $seq++;
-                }
-            }
             $prev = self::GENESIS;
+            $last = self::lastLine($fp);
             if ($last !== null) {
                 $decoded = json_decode($last, true);
-                $prev = $decoded['hash'] ?? self::GENESIS;
+                if (!is_array($decoded) || !isset($decoded['seq'], $decoded['hash'])) {
+                    throw new RuntimeException('Ultima riga del registro illeggibile: verificare il file.');
+                }
+                $seq = (int) $decoded['seq'];
+                $prev = $decoded['hash'];
             }
 
             $entry = [
@@ -90,7 +118,7 @@ class ConsentLedger
             $entry['hash'] = self::sign($entry);
 
             fseek($fp, 0, SEEK_END);
-            fwrite($fp, json_encode($entry, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES) . "\n");
+            fwrite($fp, self::json($entry) . "\n");
             fflush($fp);
             @chmod(self::file(), 0640);
             return $entry;
@@ -120,7 +148,7 @@ class ConsentLedger
 
     public static function saveRecord(array $record)
     {
-        Storage::writeAtomic(self::recordFile($record['id']), json_encode($record, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_PRETTY_PRINT));
+        Storage::writeAtomic(self::recordFile($record['id']), self::json($record, JSON_PRETTY_PRINT));
     }
 
     public static function loadRecord($id)
@@ -184,19 +212,34 @@ class ConsentLedger
         if (!$entry) {
             return null;
         }
-        return self::withStatus($entry, $all, $withPersonal);
+        return self::withStatus($entry, self::eventIndex($all), $withPersonal);
     }
 
-    private static function withStatus(array $entry, array $all, $withPersonal)
+    /** Indice ID pratica => eventi successivi, costruito in un solo passaggio. */
+    private static function eventIndex(array $all)
+    {
+        $index = [];
+        foreach ($all as $ev) {
+            if (($ev['type'] ?? '') === 'consent') {
+                continue;
+            }
+            $ids = (array) ($ev['refs'] ?? []);
+            if (isset($ev['ref'])) {
+                $ids[] = $ev['ref'];
+            }
+            foreach (array_unique($ids) as $id) {
+                $index[$id][] = $ev;
+            }
+        }
+        return $index;
+    }
+
+    private static function withStatus(array $entry, array $index, $withPersonal)
     {
         $id = $entry['id'];
         $entry['status'] = ['confirmed' => !empty($entry['marketing_confirmed']) ? $entry['at'] : null, 'withdrawn' => null, 'erased' => null, 'delivery' => null];
-        foreach ($all as $ev) {
+        foreach ($index[$id] ?? [] as $ev) {
             $t = $ev['type'] ?? '';
-            $mine = ($ev['ref'] ?? null) === $id || in_array($id, (array) ($ev['refs'] ?? []), true);
-            if (!$mine) {
-                continue;
-            }
             if ($t === 'marketing_confirmed') {
                 $entry['status']['confirmed'] = $ev['at'];
             } elseif ($t === 'withdrawal') {
@@ -219,10 +262,11 @@ class ConsentLedger
     public static function consents()
     {
         $all = self::all();
+        $index = self::eventIndex($all);
         $out = [];
         foreach ($all as $row) {
             if (($row['type'] ?? '') === 'consent') {
-                $out[] = self::withStatus($row, $all, true);
+                $out[] = self::withStatus($row, $index, true);
             }
         }
         return array_reverse($out);
@@ -248,7 +292,7 @@ class ConsentLedger
         $all = self::all();
         foreach ($all as $row) {
             if (($row['type'] ?? '') === 'consent' && hash_equals((string) ($row['pdf_sha256'] ?? ''), $sha256)) {
-                return self::withStatus($row, $all, false);
+                return self::withStatus($row, self::eventIndex($all), false);
             }
         }
         return null;

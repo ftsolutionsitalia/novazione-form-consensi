@@ -5,6 +5,9 @@
  * Indica solo i valori che vuoi cambiare rispetto a config.php.
  */
 return [
+    // URL pubblico (senza barra finale): i link in email e PDF puntano qui
+    'site_url'       => 'https://studioortopedicopremium.it/sviluppo',
+
     'mail_from'      => 'noreply@studioortopedicopremium.it',
     'mail_from_name' => 'Novazione',
 

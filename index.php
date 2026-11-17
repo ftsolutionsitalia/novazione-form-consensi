@@ -120,6 +120,13 @@ page_header(cfg('mail_from_name') . ' – Trasformiamo le tue idee in realtà', 
                         <?= icon('alert') ?> <span><?= $errors ? 'Controlla i campi evidenziati.' : '' ?></span>
                     </div>
 
+                    <?php if ($GLOBALS['STORAGE_ERROR']): ?>
+                    <div class="notice ko" role="alert">
+                        Il modulo è temporaneamente non disponibile. Contattaci al
+                        <a href="tel:<?= e(preg_replace('/[^+\d]/', '', $c['phone'])) ?>"><?= e($c['phone']) ?></a>
+                        o scrivi a <a href="mailto:<?= e($c['email']) ?>"><?= e($c['email']) ?></a>.
+                    </div>
+                    <?php else: ?>
                     <form id="contactForm" action="process.php" method="POST" class="contact-form" novalidate>
                         <div class="form-row">
                             <div class="form-group">
@@ -208,6 +215,7 @@ page_header(cfg('mail_from_name') . ' – Trasformiamo le tue idee in realtà', 
 
                         <p class="form-note"><?= icon('lock') ?> Connessione protetta. Riceverai una copia firmata del consenso via email.</p>
                     </form>
+                    <?php endif; ?>
                 </div>
             </div>
         </div>

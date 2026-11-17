@@ -126,6 +126,10 @@ if (isset($_POST['erase']) && Security::checkCsrf($_POST['csrf_token'] ?? null) 
 }
 
 $chain = ConsentLedger::verify();
+if (!isset($_SESSION['storage_check']) || isset($_GET['recheck'])) {
+    $_SESSION['storage_check'] = Storage::isWebProtected(base_url());
+}
+$storageCheck = $_SESSION['storage_check'];
 $consents = ConsentLedger::consents();
 $q = trim((string) ($_GET['q'] ?? ''));
 if ($q !== '') {
@@ -149,6 +153,11 @@ page_header('Registro consensi – area riservata');
 
             <?php if ($notice): ?><div class="notice info"><?= e($notice) ?></div><?php endif; ?>
 
+            <?php if ($storageCheck === false): ?>
+                <div class="notice ko"><strong>&#10008; PERICOLO: la cartella dati è scaricabile dal web.</strong> Il server ignora .htaccess (probabilmente nginx). Sposta <code>storage_dir</code> fuori dalla cartella pubblica in <code>config.local.php</code> oppure blocca <code>/storage/</code> nella configurazione del server. <a href="admin.php?recheck=1">Ricontrolla</a></div>
+            <?php elseif ($storageCheck === null): ?>
+                <div class="notice info">Non è stato possibile verificare automaticamente che la cartella dati sia protetta: apri <code>storage/probe.txt</code> nel browser e controlla che risponda 403/404. <a href="admin.php?recheck=1">Ricontrolla</a></div>
+            <?php endif; ?>
             <?php if ($chain['ok']): ?>
                 <div class="notice ok">&#10004; Registro integro: <?= (int) $chain['count'] ?> eventi verificati, catena di hash intatta.</div>
             <?php else: ?>
